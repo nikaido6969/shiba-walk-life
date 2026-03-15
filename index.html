@@ -348,6 +348,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'Hi
 .koro-npc-label{position:absolute;pointer-events:none;z-index:5;}
 
 .koro-npc-overlay.show ~ .koro-npc-bubble{display:block!important;}
+
+/* コロ大大先生NPC吹き出し */
+.korodai-npc-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:240;backdrop-filter:blur(3px);}
+.korodai-npc-overlay.show{display:block;}
+.korodai-npc-bubble{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:250;background:linear-gradient(135deg,#F3E5F5,#E8EAF6,#E1F5FE);border:2px solid #CE93D8;border-radius:20px;padding:18px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(156,39,176,.3);animation:modalPop .3s ease-out;}
+.korodai-npc-overlay.show ~ .korodai-npc-bubble{display:block!important;}
+.korodai-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.korodai-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E1BEE7,#CE93D8);display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid #AB47BC;flex-shrink:0;position:relative;}
+.korodai-avatar::after{content:'👼';position:absolute;top:-10px;right:-6px;font-size:12px;}
+.korodai-name{font-size:14px;font-weight:bold;color:#6A1B9A;}
+.korodai-tag{font-size:9px;color:#fff;background:linear-gradient(135deg,#AB47BC,#7B1FA2);border-radius:8px;padding:1px 7px;margin-left:4px;}
+.korodai-method{font-size:13px;font-weight:bold;color:#4A148C;margin-bottom:6px;}
+.korodai-origin{font-size:10px;color:#7B1FA2;margin-bottom:8px;font-style:italic;}
+.korodai-body{background:rgba(255,255,255,.85);border-radius:12px;padding:10px 12px;font-size:12px;color:#4A148C;line-height:1.7;border-left:3px solid #CE93D8;}
+.korodai-daily{background:linear-gradient(135deg,#EDE7F6,#E8EAF6);border:1px solid #D1C4E9;border-radius:10px;padding:8px;margin-top:8px;font-size:10px;color:#5E35B1;text-align:center;}
 </style>
 </head>
 <body>
@@ -818,6 +833,8 @@ function handleTap(x,y){
     }
   }
 
+  // コロ大大先生NPCタップ判定
+  if(koroDaiNpc.visible && Math.hypot(koroDaiNpc.x-x,koroDaiNpc.y-y)<35){talkKoroDaiNpc();return;}
   // コロ先生NPCタップ判定
   if(koroNpc.visible && Math.hypot(koroNpc.x-x,koroNpc.y-y)<30){talkKoroNpc();return;}
   // NPC タップ判定
@@ -931,6 +948,8 @@ function spawnNPCs(){
   G.npcs=[];
   // コロ先生NPCをスポーン
   spawnKoroNpc();
+  // コロ大大先生NPCをスポーン（公園のみ）
+  spawnKoroDaiNpc();
   G.dagashiItems=[];
   const count=3+Math.floor(Math.random()*4);
   for(let i=0;i<count;i++){
@@ -1118,6 +1137,8 @@ function drawAll(){
   for(const n of G.npcs)drawNPCDog(n);
   // コロ先生NPC
   drawKoroNpc();
+  // コロ大大先生NPC
+  drawKoroDaiNpc();
 
   // ママ
   drawMama(G.mama.x,G.mama.y);
@@ -5439,6 +5460,37 @@ var KORO_COLUMNS = [
   }
 ];
 
+// ===================== コロ先生 日替わり追加コラム =====================
+var KORO_DAILY_COLUMNS = [
+  {title:'集中力を高める環境づくり',icon:'🏠',body:'勉強場所の環境は集中力に大きく影響するよ！<div class="koro-point">①室温は22〜25℃が最適<br>②自然光が入る場所がベスト<br>③BGMは歌詞なしの曲がおすすめ</div>カフェで勉強がはかどる人は、適度な雑音（70dB程度）が創造性を高めることが研究で判明しているよ。<div class="koro-example">【やってみよう】今日は勉強場所を変えて、集中力の違いを体感してみよう！</div>'},
+  {title:'記憶力を上げる食事法',icon:'🍎',body:'脳の栄養は食事から！記憶力アップに効く食べ物を紹介するよ。<div class="koro-point">①ブルーベリー：脳の酸化を防ぐ<br>②青魚（DHA）：神経細胞を活性化<br>③ナッツ類：ビタミンEで記憶力UP<br>④チョコレート（カカオ70%以上）：血流改善</div>朝食を食べる学生は食べない学生より<b>テストの成績が平均15%高い</b>という研究結果もあるよ！<div class="koro-example">【やってみよう】明日の朝ごはんにバナナとナッツを加えてみよう！</div>'},
+  {title:'やる気スイッチの入れ方',icon:'🔥',body:'やる気が出ない時、脳科学的に効果的な方法があるよ！<div class="koro-point">「やる気は行動の前に来ない。行動の後に来る」<br>これを「作業興奮」と呼ぶんだ。</div>だから、<b>まず5分だけやってみる</b>のが正解！5分経つと脳の側坐核が活性化して、自然とやる気が出てくるよ。<div class="koro-example">【やってみよう】「5分だけクイズをやろう」と決めてスタートしてみよう！</div>'},
+  {title:'テスト不安を克服する方法',icon:'😌',body:'テスト前の緊張は誰にでもあるもの。でも対策があるよ！<div class="koro-point">①10分間「不安を紙に書き出す」だけで成績が向上（シカゴ大学研究）<br>②深呼吸を4秒吸って7秒止めて8秒吐く<br>③「緊張している」を「ワクワクしている」に言い換える</div>適度な緊張は<b>パフォーマンスを高める</b>（ヤーキーズ・ドットソンの法則）。緊張を味方にしよう！<div class="koro-example">【やってみよう】次のクイズ前に深呼吸3回してからスタートしてみよう！</div>'},
+  {title:'復習のゴールデンタイム',icon:'⏰',body:'復習にはベストなタイミングがあるんだ！<div class="koro-point">エビングハウスの忘却曲線によると：<br>・20分後に42%忘れる<br>・1時間後に56%忘れる<br>・1日後に74%忘れる</div>だから<b>「学んだその日のうちに1回」「翌日にもう1回」</b>復習するのが最強！これだけで1週間後の記憶定着率が8倍になるよ。<div class="koro-example">【やってみよう】寝る前の5分間でその日学んだことを思い出してみよう！</div>'},
+  {title:'マルチタスクの罠',icon:'⚠️',body:'「同時に複数やれば効率的」は実は大間違い！<div class="koro-point">スタンフォード大学の研究：マルチタスクをする人は<br>・集中力が47%低下<br>・タスク切り替えに23分の回復時間が必要<br>・IQが一時的に15ポイント低下</div><b>1つのことに集中する方が圧倒的に効率的</b>。音楽を聴きながらの勉強も、歌詞付きだと効率が下がるよ。<div class="koro-example">【やってみよう】今日は1科目ずつ、シングルタスクで勉強してみよう！</div>'},
+  {title:'運動と脳の関係',icon:'🏃',body:'運動は体だけでなく<b>脳も鍛える</b>んだ！<div class="koro-point">ハーバード大学の研究：<br>・20分の有酸素運動で記憶力が20%向上<br>・定期的な運動で海馬（記憶の中心）が2%増大<br>・運動後にBDNF（脳の成長因子）が分泌される</div>勉強の合間に軽い散歩やストレッチをするだけで効果あり！<div class="koro-example">【やってみよう】勉強の休憩時間に外で柴犬とお散歩しよう！（このゲームでもOK！）</div>'},
+  {title:'ノートの取り方で差がつく',icon:'📝',body:'ただ黒板を写すだけのノートはもったいない！<div class="koro-point">効果的なノートの秘訣：<br>・「自分の言葉」で書き換える<br>・図やイラストを積極的に使う<br>・余白に疑問点やメモを書く<br>・色は3色まで（それ以上は逆効果）</div>プリンストン大学の研究で、<b>手書きノートはPCタイピングより記憶定着率が高い</b>と判明！<div class="koro-example">【やってみよう】次の授業で「自分の言葉で書くノート」を試してみよう！</div>'},
+  {title:'天才たちの学習習慣',icon:'🧑‍🔬',body:'歴史上の天才たちに共通する学習習慣を紹介するよ！<div class="koro-point">・アインシュタイン：散歩で考える（毎日1.5時間散歩）<br>・ダ・ヴィンチ：好奇心を全て記録（ノート7000ページ）<br>・モーツァルト：8歳から毎日6時間以上の練習<br>・イチロー：毎日同じルーティンを継続</div>共通点は<b>「毎日コツコツ継続する」</b>こと。天才も一日にして成らず！<div class="koro-example">【やってみよう】毎日10分のクイズを1ヶ月続けてみよう。きっと変化を感じるよ！</div>'},
+  {title:'質問力が成績を上げる',icon:'❓',body:'質問ができる人は伸びる！これは確実に言えることだよ。<div class="koro-point">質問の3つのレベル：<br>Level 1：「わからないところ」を聞く<br>Level 2：「なぜそうなるか」を聞く<br>Level 3：「もしこうだったら？」を聞く</div>Level 3の質問ができると<b>理解が3倍深まる</b>という研究結果もあるよ。<div class="koro-example">【やってみよう】クイズを間違えたら「なぜ間違えたか」を考えてみよう！</div>'},
+  {title:'暗記に最適な時間帯',icon:'🌙',body:'脳科学的に、暗記に最適な時間帯がわかっているよ！<div class="koro-point">・朝（6〜10時）：論理的思考、数学、理科に最適<br>・昼（10〜14時）：創造性が高まる。作文、アイデア出し<br>・夕方（16〜20時）：長期記憶に残りやすい。暗記科目<br>・寝る前30分：暗記のゴールデンタイム</div><b>寝る前に覚えたことは睡眠中に整理されて記憶に定着</b>しやすい！<div class="koro-example">【やってみよう】寝る前に英単語クイズをやって、朝起きたら思い出してみよう！</div>'},
+  {title:'失敗から学ぶ力',icon:'💪',body:'間違えることは恥ずかしいことじゃない。<b>むしろ成長のチャンス</b>なんだ！<div class="koro-point">UCLA研究：間違えた後に正しい答えを学ぶと<br>・最初から正解した場合より<b>記憶保持率が25%高い</b><br>・「なぜ間違えたか」を考えることで深い理解に到達</div>エジソンも「失敗ではない。うまくいかない方法を1万通り発見したんだ」と言ったよね。<div class="koro-example">【やってみよう】クイズで間違えた問題は「間違いノート」に記録しよう！</div>'},
+];
+
+// 日替わりで3つのコラムを選んで追加表示
+function getDailyColumns(){
+  var today = new Date();
+  var dayOfYear = Math.floor((today - new Date(today.getFullYear(),0,0)) / 86400000);
+  var seed = dayOfYear * 13 + today.getFullYear() * 3;
+  var indices = [];
+  for(var i=0;i<KORO_DAILY_COLUMNS.length;i++) indices.push(i);
+  for(var i=indices.length-1;i>0;i--){
+    seed = (seed * 48271 + 11) & 0x7FFFFFFF;
+    var j = seed % (i+1);
+    var t=indices[i];indices[i]=indices[j];indices[j]=t;
+  }
+  return indices.slice(0,3).map(function(idx){return KORO_DAILY_COLUMNS[idx];});
+}
+
 // コラム既読管理
 function loadColumnRead(){
   try{ var d=localStorage.getItem('koro_col_read'); return d?JSON.parse(d):[]; }catch(e){return [];}
@@ -5468,8 +5520,40 @@ function renderKoroColumnsHTML(){
   if(allRead){
     h += '<div class="koro-bonus-msg">🎉 全コラム読破！+50 EXPボーナス獲得！</div>';
   }
+  // 日替わりコラム
+  var dailyCols = getDailyColumns();
+  h += '<h3 style="margin-top:14px;">📅 今日の日替わりコラム <span style="font-size:10px;color:#AB47BC;font-weight:normal;background:#F3E5F5;padding:2px 8px;border-radius:8px;">毎日更新</span></h3>';
+  h += '<div class="koro-col-list">';
+  for(var i=0;i<dailyCols.length;i++){
+    var dc = dailyCols[i];
+    h += '<div class="koro-col-item" style="border-left:3px solid #CE93D8;" onclick="openDailyColumn('+i+')">';
+    h += '<div class="koro-col-num" style="background:linear-gradient(135deg,#CE93D8,#AB47BC);color:#fff;">★</div>';
+    h += '<div class="koro-col-title">'+dc.icon+' '+dc.title+'</div>';
+    h += '<span class="koro-col-new" style="background:#AB47BC;">TODAY</span>';
+    h += '</div>';
+  }
+  h += '</div>';
   h += '</div>';
   return h;
+}
+
+function openDailyColumn(idx){
+  var dailyCols = getDailyColumns();
+  var col = dailyCols[idx];
+  if(!col) return;
+
+  var box = document.getElementById('koro-detail-box');
+  var h = '<h3>'+col.icon+' '+col.title+'</h3>';
+  h += '<div class="koro-detail-sub" style="color:#AB47BC;">📅 今日の日替わりコラム</div>';
+  h += '<div class="koro-detail-body">'+col.body+'</div>';
+  h += '<div style="margin-top:16px;text-align:center;">';
+  if(idx < dailyCols.length - 1){
+    h += '<button class="mbtn" style="background:linear-gradient(135deg,#AB47BC,#7B1FA2);" onclick="openDailyColumn('+(idx+1)+')">次の日替わりコラムへ ›</button> ';
+  }
+  h += '<button class="mbtn" style="background:#8D6E63;" onclick="closeKoroDetail()">とじる</button>';
+  h += '</div>';
+  box.innerHTML = h;
+  document.getElementById('koro-detail-overlay').classList.add('show');
 }
 
 function openKoroColumn(idx){
@@ -5907,6 +5991,353 @@ function closeEngQuiz(){
   document.getElementById('eq-overlay').classList.remove('show');
 }
 
+// ===================== コロ大大先生NPC（勉強法アドバイス）=====================
+var STUDY_METHODS = [
+  {name:'アクティブリコール',origin:'認知心理学（カーピック教授）',body:'教科書を読み返すのではなく、<b>白紙に思い出して書く</b>ことで記憶が強化される。テスト効果とも呼ばれ、50%以上記憶定着率が上がる。'},
+  {name:'間隔反復法（スペースドリピティション）',origin:'エビングハウス（ドイツ心理学者）',body:'1日後→3日後→7日後→30日後と<b>間隔を空けて復習</b>する。忘却曲線を利用した最強の記憶術。'},
+  {name:'ポモドーロ・テクニック',origin:'フランチェスコ・シリロ（イタリア）',body:'<b>25分集中＋5分休憩</b>を1セットとして繰り返す。4セット後に長めの休憩。集中力を維持しやすい。'},
+  {name:'ファインマン・テクニック',origin:'リチャード・ファインマン（ノーベル物理学賞）',body:'学んだ内容を<b>小学生にもわかるように説明</b>する。説明できない部分が理解不足のポイント。'},
+  {name:'コーネル式ノート術',origin:'ウォルター・パーク（コーネル大学）',body:'ノートを3分割し、<b>右にメモ、左にキーワード、下にまとめ</b>を書く。復習効率が格段にアップ。'},
+  {name:'SQ3R読書法',origin:'フランシス・P・ロビンソン（教育心理学者）',body:'Survey（概観）→Question（疑問）→Read（読む）→Recite（暗唱）→Review（復習）の<b>5ステップで教科書を読む</b>。'},
+  {name:'マインドマップ',origin:'トニー・ブザン（イギリス）',body:'中心にテーマを書き、<b>放射状にキーワードをつなげる</b>。脳の連想構造に合った整理法で全体像が見える。'},
+  {name:'ライトナーシステム',origin:'セバスチャン・ライトナー（ドイツ科学者）',body:'フラッシュカードを<b>正解・不正解で箱を分けて管理</b>。間違えたカードを重点的に復習する効率的暗記法。'},
+  {name:'記憶の宮殿（メモリーパレス）',origin:'古代ギリシャ・シモニデス',body:'<b>なじみの場所に覚えたい情報を配置</b>するイメージ記憶術。記憶力チャンピオンも使う最古の記憶テクニック。'},
+  {name:'インターリービング学習',origin:'認知科学研究',body:'同じ科目ばかりでなく、<b>複数の科目やテーマを交互に学習</b>する。脳が違いを認識し、応用力が上がる。'},
+  {name:'精緻化リハーサル',origin:'クレイクとロックハート（記憶研究）',body:'単純に繰り返すのでなく、<b>「なぜ？」「どうして？」と深く考えながら覚える</b>。意味記憶として定着しやすい。'},
+  {name:'ティーチング効果（教える勉強法）',origin:'ワシントン大学研究',body:'人に<b>教えるつもりで学ぶと記憶定着率が28%向上</b>する。ぬいぐるみに説明するだけでもOK！'},
+  {name:'チャンキング（まとめ記憶）',origin:'ジョージ・ミラー（認知心理学）',body:'情報を<b>小さなまとまり（チャンク）に分けて覚える</b>。電話番号を3桁ずつ覚えるのと同じ原理。'},
+  {name:'デュアルコーディング（二重符号化）',origin:'アラン・パイヴィオ（心理学者）',body:'<b>文字と画像の両方で情報を記憶</b>する。図やイラストと一緒に覚えると忘れにくい。'},
+  {name:'プレテスト（事前テスト）',origin:'UCLA研究',body:'学習前に<b>あえて問題を解いてみる</b>。間違えても、その後の学習効果が大幅に高まる。'},
+  {name:'分散学習（分けて勉強）',origin:'ピョートル・ウォズニアック',body:'一夜漬けではなく、<b>毎日少しずつ分けて勉強</b>する。長期記憶への定着率が3倍以上になる。'},
+  {name:'ゼロ秒思考',origin:'赤羽雄二（マッキンゼー出身）',body:'A4の紙に<b>1分間で思考を書き出す</b>。毎日10枚書くことで思考力と記憶力が飛躍的に向上する。'},
+  {name:'1:5の法則（アウトプット重視）',origin:'コロンビア大学研究',body:'勉強時間の<b>インプット3割、アウトプット7割</b>が最適比率。読むだけより問題を解く方が身につく。'},
+  {name:'音読学習法',origin:'脳科学研究（川島隆太教授）',body:'<b>声に出して読むと脳の前頭前野が活性化</b>。黙読より記憶定着率が高く、理解も深まる。'},
+  {name:'場所を変える勉強法',origin:'UCLA研究（ビョーク教授）',body:'<b>勉強する場所を定期的に変える</b>と、環境の変化が記憶の手がかりを増やし、思い出しやすくなる。'},
+  {name:'睡眠学習法',origin:'ハーバード大学研究',body:'寝る前に覚えて<b>6〜8時間睡眠をとる</b>。睡眠中に脳が情報を整理し、長期記憶に変換してくれる。'},
+  {name:'手書きノート効果',origin:'プリンストン大学研究',body:'PCタイピングより<b>手書きの方が記憶定着率が高い</b>。手を動かすことで脳により深く記録される。'},
+  {name:'パレート勉強法（80:20の法則）',origin:'ヴィルフレド・パレート（経済学者）',body:'テストの<b>80%は全範囲の20%から出題</b>される。重要な20%を見極めて集中的に勉強する。'},
+  {name:'プロトタイプ理論学習',origin:'エレノア・ロッシュ（認知心理学）',body:'各テーマの<b>最も典型的な例題を完璧にマスター</b>する。そこから応用問題に展開していく。'},
+  {name:'ブレインダンプ',origin:'バーバラ・オークリー（学習科学者）',body:'テスト開始直後に<b>覚えていることを全部余白に書き出す</b>。記憶が新鮮なうちにアウトプットする技。'},
+  {name:'ツァイガルニク効果の活用',origin:'ブルーマ・ツァイガルニク（心理学者）',body:'<b>あえて途中で勉強を中断</b>すると、未完了の課題が気になり、記憶に残りやすくなる。'},
+  {name:'KWLチャート',origin:'ドナ・オグル（教育学者）',body:'<b>K（知っていること）W（知りたいこと）L（学んだこと）</b>を表にまとめて学習を構造化する。'},
+  {name:'5回読み勉強法',origin:'山口真由（東大首席卒業）',body:'同じ教科書を<b>5回繰り返し読む</b>。1回目は流し読み、回を重ねるごとに理解が深まる。'},
+  {name:'3色ペン勉強法',origin:'齋藤孝（明治大学教授）',body:'赤（最重要）青（重要）緑（面白い）の<b>3色で情報に優先順位をつける</b>。メリハリある復習が可能に。'},
+  {name:'ストップウォッチ勉強法',origin:'粂原圭太郎（京大首席合格）',body:'各科目の<b>勉強時間をストップウォッチで計測</b>。記録することでモチベーションと効率が上がる。'},
+  {name:'1分間リフレクション',origin:'ハーバードビジネススクール',body:'授業や学習の直後に<b>1分間で学んだことを振り返って書く</b>。短時間でも効果的な復習になる。'},
+  {name:'フロー状態学習',origin:'ミハイ・チクセントミハイ（心理学者）',body:'<b>少し難しいレベルの問題に挑戦</b>することで「フロー」に入る。極度の集中状態で学習効率が最大化。'},
+  {name:'RPG勉強法（ゲーミフィケーション）',origin:'ジェーン・マクゴニガル（ゲーム研究者）',body:'勉強を<b>レベルアップやクエストに見立てる</b>。達成感がドーパミンを出し、継続しやすくなる。'},
+  {name:'モダリティ効果',origin:'リチャード・メイヤー（教育心理学）',body:'<b>視覚と聴覚を同時に使う</b>と記憶が強化される。図を見ながら音声解説を聞くのが最強。'},
+  {name:'エラボレーション（精緻化）',origin:'アンダーソン＆ラダー（認知科学）',body:'新しい情報を<b>既知の知識と関連づけて覚える</b>。「これは○○と似ている」と考えるだけで記憶力UP。'},
+  {name:'ジグソー法',origin:'エリオット・アロンソン（社会心理学者）',body:'グループ内で<b>各自がパートを担当して教え合う</b>。教える責任感が深い理解を促進する。'},
+  {name:'レトリーバルプラクティス',origin:'ヘンリー・ロディガー三世（認知心理学）',body:'ノートを閉じて<b>思い出す練習を何度も繰り返す</b>。「思い出す努力」そのものが記憶を強化する。'},
+  {name:'目標設定理論',origin:'エドウィン・ロック（組織心理学者）',body:'<b>具体的で達成可能な目標を設定</b>する。「毎日30問解く」のように数値化すると実行率が上がる。'},
+  {name:'ピアラーニング（仲間学習）',origin:'ハーバード大学教育学部',body:'<b>友達と教え合いながら勉強</b>する。質問し合うことで理解の抜けが見つかり、互いに成長できる。'},
+  {name:'ロードマップ学習法',origin:'バーバラ・オークリー（学習科学者）',body:'まず<b>全体の学習計画を地図のように作成</b>してから勉強開始。ゴールが見えるとモチベーションが続く。'},
+  {name:'メタ認知学習',origin:'ジョン・フラベル（発達心理学者）',body:'<b>「自分が何を理解して何を理解していないか」を把握</b>する。自分の学習を客観視すると効率が大幅UP。'},
+  {name:'カラーバス効果の活用',origin:'認知心理学',body:'<b>「今日は○○に注目」とテーマを決めて過ごす</b>。日常の中からテーマに関連する情報が自然に目に入る。'},
+  {name:'連想記憶法',origin:'アレクサンダー・ルリヤ（神経心理学者）',body:'覚えたい情報を<b>面白いストーリーやイメージに変換</b>する。突飛であるほど記憶に残りやすい。'},
+  {name:'ペグ法（掛け釘法）',origin:'記憶術の伝統技法',body:'数字とイメージを対応させ、<b>1=鉛筆、2=白鳥のように覚える</b>。順番のある情報の暗記に最適。'},
+  {name:'シングルタスク集中法',origin:'グロリア・マーク（注意力研究）',body:'<b>1つのことだけに集中</b>する。マルチタスクは効率が40%低下する。スマホは別の部屋に置く。'},
+  {name:'復習タイミング最適化',origin:'ウォズニアック（SuperMemo開発者）',body:'<b>忘れかけた頃に復習</b>するのが最も効果的。完全に忘れる前の「あれ？なんだっけ」が最適タイミング。'},
+  {name:'オーバーラーニング（過剰学習）',origin:'クルーガーとダニング（心理学研究）',body:'完璧に覚えた後も<b>さらに20%追加で練習</b>する。自動化レベルまで到達すると、テストで実力を発揮できる。'},
+  {name:'アナロジー学習（類推法）',origin:'ジック＆ホリオーク（認知科学）',body:'<b>似ている別の概念と比較して理解</b>する。「電流は水の流れと同じ」のように例えると理解が深まる。'},
+  {name:'ラバーダック・デバッグ法',origin:'プログラミング文化',body:'<b>ゴムのアヒルに向かって説明</b>する。声に出して説明することで思考が整理され、理解が深まる。'},
+  {name:'SMART目標設定',origin:'ジョージ・T・ドラン（経営コンサルタント）',body:'<b>具体的・測定可能・達成可能・関連性・期限付き</b>の5条件で目標を設定。達成率が大幅に向上する。'},
+  {name:'朝型学習（朝活勉強法）',origin:'脳科学研究',body:'<b>起床後2〜3時間が脳のゴールデンタイム</b>。朝は前頭前野が活性化しており、難しい科目に最適。'},
+  {name:'マイクロラーニング',origin:'ドイツ教育工学研究',body:'<b>5〜10分の短い学習を1日数回</b>繰り返す。スキマ時間を活用でき、集中力も維持しやすい。'},
+  {name:'ドゥードル効果（落書き学習）',origin:'プリマス大学研究',body:'<b>聞きながら軽く落書きすると記憶力が29%向上</b>。手を動かすことで注意力が維持される。'},
+  {name:'自己テスト戦略',origin:'ダンロスキー（認知心理学）',body:'教科書を読んだら<b>すぐに自分で問題を作って解く</b>。「作問＋解答」のセットが最強の復習法。'},
+  {name:'ウォーキング学習法',origin:'スタンフォード大学研究',body:'<b>歩きながら暗記する</b>と創造性が60%向上。散歩しながら単語を覚えたり考えを整理する。'},
+  {name:'逆算勉強法',origin:'合格者の共通戦略',body:'<b>ゴール（試験日）から逆算して計画</b>を立てる。「いつまでに何を終わらせるか」が明確になる。'},
+];
+
+// 日替わり追加5メソッド
+var DAILY_EXTRA_METHODS = [
+  {name:'ハイライト＆レビュー法',origin:'ウルリッヒ・ボーザー（学習科学者）',body:'重要箇所にハイライトした後、<b>翌日にハイライト部分だけを見て内容を思い出す</b>。ハイライトだけでは効果薄だが、リコールと組み合わせると効果大。'},
+  {name:'5分間ジャーナル学習法',origin:'ティム・フェリス（著作家・投資家）',body:'勉強前に<b>今日学ぶ目標を3つ書き、終了後に学んだことを3つ書く</b>。メタ認知とモチベーション向上。'},
+  {name:'コモドーロ法（変形ポモドーロ）',origin:'深津貴之（起業家）',body:'<b>45分集中＋15分休憩</b>の変形版。より長い集中時間が得意な人向け。'},
+  {name:'フラッシュカード二重記憶法',origin:'記憶術研究',body:'フラッシュカードの表に問題、裏に答えだけでなく<b>イラストや語呂合わせも加える</b>。二重符号化で記憶力UP。'},
+  {name:'バックワードデザイン学習',origin:'ウィギンズ＆マクタイ（教育設計）',body:'<b>テストで求められる力から逆算して学習内容を決める</b>。目標から逆に計画することで効率的。'},
+  {name:'ストーリーテリング記憶法',origin:'ゴードン・バウアー（心理学者）',body:'覚えたい単語やキーワードを<b>1つの物語として組み立てる</b>。ストーリー形式だと記憶保持率が6〜7倍になる研究結果あり。'},
+  {name:'カンニングペーパー勉強法',origin:'受験テクニック',body:'<b>1枚のA4にまとめるつもりで要点を凝縮</b>して書く。カンペ自体は使わないが、作成過程で理解が深まる。'},
+  {name:'ラーニングピラミッド活用法',origin:'NTLインスティチュート',body:'<b>講義5%→読書10%→視聴20%→実演30%→議論50%→実践75%→教える90%</b>と記憶定着率が変わる。能動的学習を増やす。'},
+  {name:'ノモフォビア対策（スマホ断ち勉強）',origin:'テキサス大学研究',body:'<b>スマホが視界にあるだけで認知能力が低下</b>する。勉強中はスマホを別の部屋に置くだけで集中力UP。'},
+  {name:'サンドイッチ学習法',origin:'記憶研究',body:'<b>得意科目→苦手科目→得意科目</b>の順で勉強。苦手科目を得意科目で挟むことでモチベーション維持。'},
+  {name:'速読トレーニング法',origin:'フォトリーディング（ポール・シーリィ）',body:'<b>まず全ページをパラパラめくって全体像を把握</b>し、次に重要箇所を集中して読む。読書速度と理解が同時に向上。'},
+  {name:'セルフエクスプレイン法',origin:'チ（認知心理学）',body:'問題を解いた後<b>「なぜこの答えになるか」を自分の言葉で説明</b>する。正答でも誤答でも説明するのがポイント。'},
+  {name:'タイムボックス法',origin:'アジャイル開発由来',body:'<b>各タスクに固定の制限時間を設ける</b>。「この問題は3分で解く」と決めることで集中力が上がる。'},
+  {name:'2分間ルール',origin:'デビッド・アレン（GTD提唱者）',body:'<b>2分以内にできることはすぐやる</b>。小さなタスクを後回しにしない。暗記カード1枚でも即実行。'},
+  {name:'パワーナップ学習法',origin:'NASA研究',body:'<b>20分の昼寝で認知機能が34%回復</b>。午後の勉強前にパワーナップすると効率が大幅に改善される。'},
+  {name:'ビジュアルノート（スケッチノート）',origin:'マイク・ローデ（デザイナー）',body:'<b>絵や図を積極的にノートに描く</b>。視覚情報として記憶に残りやすく、復習時にも全体像を把握しやすい。'},
+  {name:'コンセプトマップ',origin:'ジョセフ・ノヴァク（教育学者）',body:'<b>概念同士の関係を矢印でつなげて図示</b>する。マインドマップより論理的なつながりを重視した学習法。'},
+  {name:'ライティング・トゥ・ラーン',origin:'全米ライティングプロジェクト',body:'<b>学んだ内容を自分の言葉で文章にまとめる</b>。書くことで思考が整理され、深い理解に達する。'},
+  {name:'ミラーリング学習法',origin:'社会的学習理論（バンデューラ）',body:'<b>成績優秀な人の勉強法を真似る</b>。観察して模倣することで効果的な学習習慣を身につけられる。'},
+  {name:'ガンマ波瞑想学習法',origin:'ウィスコンシン大学研究',body:'<b>5分間の瞑想後に勉強</b>すると集中力が向上。マインドフルネスが前頭前野を活性化させる。'},
+  {name:'スキャフォールディング学習法',origin:'ヴィゴツキー（発達心理学者）',body:'<b>最初は補助をつけて学び、徐々に補助を外す</b>。発達の最近接領域（ZPD）を活用した段階的学習法。'},
+  {name:'ディベート学習法',origin:'オックスフォード大学伝統',body:'<b>賛成と反対の両方の立場で議論する</b>。1つのテーマを多角的に考えることで深い理解と批判的思考力が身につく。'},
+  {name:'チャレンジポイント法',origin:'マーク・ガンスキー（運動学習研究）',body:'<b>自分のレベルより少し難しい問題に挑戦</b>。適度な困難が学習効果を最大化する。簡単すぎても難しすぎてもダメ。'},
+  {name:'リフレクティブ・ジャーナル',origin:'ドナルド・ショーン（リフレクション理論）',body:'<b>毎日の学習を日記形式で振り返る</b>。何を学び、何が難しかったか、次にどうするかを記録すると成長が加速。'},
+];
+
+// コロ大大先生NPC状態
+var koroDaiNpc = {x:0, y:0, visible:false, method:null, floatPhase:0, wingPhase:0};
+
+// 日替わりで5メソッドを選ぶ
+function getDailyExtraMethods(){
+  var today = new Date();
+  var dayOfYear = Math.floor((today - new Date(today.getFullYear(),0,0)) / 86400000);
+  var seed = dayOfYear * 7 + today.getFullYear();
+  var indices = [];
+  for(var i=0;i<DAILY_EXTRA_METHODS.length;i++) indices.push(i);
+  // シード付きシャッフル
+  for(var i=indices.length-1;i>0;i--){
+    seed = (seed * 16807 + 12345) & 0x7FFFFFFF;
+    var j = seed % (i+1);
+    var t=indices[i];indices[i]=indices[j];indices[j]=t;
+  }
+  return indices.slice(0,5).map(function(idx){return DAILY_EXTRA_METHODS[idx];});
+}
+
+// 全メソッドプール（基本55 + 日替わり5 = 60）
+function getAllStudyMethods(){
+  return STUDY_METHODS.concat(getDailyExtraMethods());
+}
+
+var koroDaiSession = {pool:[], idx:0};
+function initKoroDaiSession(){
+  var all = getAllStudyMethods();
+  var arr = [];
+  for(var i=0;i<all.length;i++) arr.push(i);
+  // シャッフル
+  for(var i=arr.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var t=arr[i];arr[i]=arr[j];arr[j]=t;
+  }
+  koroDaiSession.pool = arr;
+  koroDaiSession.idx = 0;
+  koroDaiSession.allMethods = all;
+}
+initKoroDaiSession();
+
+function getNextStudyMethod(){
+  if(koroDaiSession.idx >= koroDaiSession.pool.length) koroDaiSession.idx = 0;
+  var idx = koroDaiSession.pool[koroDaiSession.idx];
+  koroDaiSession.idx++;
+  return koroDaiSession.allMethods[idx];
+}
+
+// コロ大大先生は公園エリアにのみ出現
+function spawnKoroDaiNpc(){
+  if(areas[G.areaIdx].id !== 'park'){
+    koroDaiNpc.visible = false;
+    return;
+  }
+  koroDaiNpc.x = 80 + Math.random() * (cW - 160);
+  koroDaiNpc.y = canvas.height * 0.32 + Math.random() * canvas.height * 0.15;
+  koroDaiNpc.visible = true;
+  koroDaiNpc.method = getNextStudyMethod();
+  koroDaiNpc.floatPhase = Math.random() * Math.PI * 2;
+  koroDaiNpc.wingPhase = 0;
+}
+
+// コロ大大先生描画（天使の羽根＋輪っか付き柴犬）
+function drawKoroDaiNpc(){
+  if(!koroDaiNpc.visible) return;
+  var x = koroDaiNpc.x;
+  var baseY = koroDaiNpc.y;
+  // ゆっくり浮遊
+  koroDaiNpc.floatPhase += 0.025;
+  koroDaiNpc.wingPhase += 0.08;
+  var y = baseY + Math.sin(koroDaiNpc.floatPhase) * 5;
+
+  // 神々しい光オーラ
+  var glowAlpha = 0.15 + Math.sin(koroDaiNpc.floatPhase * 1.5) * 0.1;
+  var glow = ctx.createRadialGradient(x, y, 5, x, y, 45);
+  glow.addColorStop(0, 'rgba(206,147,216,' + glowAlpha + ')');
+  glow.addColorStop(0.5, 'rgba(186,104,200,' + (glowAlpha*0.5) + ')');
+  glow.addColorStop(1, 'rgba(156,39,176,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, 45, 0, Math.PI*2);
+  ctx.fill();
+
+  // 影
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 35, 20, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // ===== 天使の羽根（左） =====
+  var wingAngle = Math.sin(koroDaiNpc.wingPhase) * 0.15;
+  ctx.save();
+  ctx.translate(x - 18, y - 5);
+  ctx.rotate(-0.3 + wingAngle);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-22, -18, -8, -30);
+  ctx.quadraticCurveTo(-2, -20, 0, -10);
+  ctx.quadraticCurveTo(-18, -12, -6, -24);
+  ctx.quadraticCurveTo(0, -15, 2, -5);
+  ctx.closePath();
+  ctx.fill();
+  // 羽根のハイライト
+  ctx.strokeStyle = 'rgba(206,147,216,0.4)';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // ===== 天使の羽根（右） =====
+  ctx.save();
+  ctx.translate(x + 18, y - 5);
+  ctx.rotate(0.3 - wingAngle);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(22, -18, 8, -30);
+  ctx.quadraticCurveTo(2, -20, 0, -10);
+  ctx.quadraticCurveTo(18, -12, 6, -24);
+  ctx.quadraticCurveTo(0, -15, -2, -5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(206,147,216,0.4)';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // ===== 天使の輪っか（ヘイロー） =====
+  ctx.save();
+  ctx.translate(x, y - 30);
+  ctx.scale(1, 0.35);
+  ctx.strokeStyle = '#FFD54F';
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#FFD54F';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // 体（神秘的な柴犬 やや大きめ）
+  ctx.fillStyle = '#C8A04A';
+  ctx.beginPath();
+  ctx.arc(x, y, 22, 0, Math.PI*2);
+  ctx.fill();
+
+  // お腹（白）
+  ctx.fillStyle = '#FFF8E1';
+  ctx.beginPath();
+  ctx.arc(x, y+7, 14, 0, Math.PI*2);
+  ctx.fill();
+
+  // 耳
+  ctx.fillStyle = '#B08830';
+  ctx.beginPath();
+  ctx.moveTo(x-15, y-16);
+  ctx.lineTo(x-22, y-32);
+  ctx.lineTo(x-7, y-20);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x+15, y-16);
+  ctx.lineTo(x+22, y-32);
+  ctx.lineTo(x+7, y-20);
+  ctx.fill();
+
+  // 目（知的で穏やかな目）
+  ctx.fillStyle = '#4A148C';
+  ctx.beginPath();
+  ctx.arc(x-7, y-4, 2.5, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x+7, y-4, 2.5, 0, Math.PI*2);
+  ctx.fill();
+  // 目のハイライト
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x-6, y-5, 1, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x+8, y-5, 1, 0, Math.PI*2);
+  ctx.fill();
+
+  // 鼻
+  ctx.fillStyle = '#4A148C';
+  ctx.beginPath();
+  ctx.arc(x, y+3, 2.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // 口（にっこり）
+  ctx.strokeStyle = '#6A1B9A';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y+5, 4, 0.1*Math.PI, 0.9*Math.PI);
+  ctx.stroke();
+
+  // 名前ラベル
+  ctx.fillStyle = 'rgba(106,27,154,0.9)';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('コロ大大先生', x, y + 38);
+
+  // キラキラエフェクト（紫系）
+  var sp = Math.sin(koroDaiNpc.floatPhase * 2) * 0.5 + 0.5;
+  ctx.fillStyle = 'rgba(206,147,216,' + (sp * 0.7) + ')';
+  ctx.font = '9px sans-serif';
+  ctx.fillText('✨', x - 28, y - 22);
+  ctx.fillText('✨', x + 24, y - 18);
+  ctx.fillText('🌟', x - 15, y - 35);
+}
+
+// コロ大大先生タップ処理
+function talkKoroDaiNpc(){
+  if(!koroDaiNpc.visible) return;
+  var m = koroDaiNpc.method || getNextStudyMethod();
+  showKoroDaiBubble(m);
+  koroDaiNpc.method = getNextStudyMethod();
+}
+
+function showKoroDaiBubble(m){
+  var favs = loadKoroFavorites();
+  var isFav = false;
+  for(var i=0;i<favs.length;i++){ if(favs[i].msg === m.name){ isFav=true; break; } }
+  var favJson = JSON.stringify({msg:m.name,tip:m.body}).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+
+  var overlay = document.getElementById('korodai-npc-overlay');
+  var bubble = document.getElementById('korodai-npc-bubble');
+  if(!overlay||!bubble) return;
+
+  var dailyInfo = getDailyExtraMethods();
+  var dailyNames = dailyInfo.map(function(d){return d.name;}).join('、');
+
+  var h = '<div class="korodai-header">';
+  h += '<div class="korodai-avatar">🐕</div>';
+  h += '<div><span class="korodai-name">コロ大大先生</span><span class="korodai-tag">勉強法</span></div>';
+  h += '<button class="koro-fav-btn'+(isFav?' liked':'')+'" style="position:absolute;top:12px;right:12px;" onclick="toggleKoroFav(this,&quot;'+favJson+'&quot;)">'+(isFav?'❤️':'🤍')+'</button>';
+  h += '</div>';
+  h += '<div class="korodai-method">📖 '+m.name+'</div>';
+  h += '<div class="korodai-origin">💡 '+m.origin+'</div>';
+  h += '<div class="korodai-body">'+m.body+'</div>';
+  h += '<div class="korodai-daily">📅 今日の日替わり勉強法：'+dailyNames.substring(0,40)+'…</div>';
+  h += '<div style="text-align:center;display:flex;gap:8px;justify-content:center;margin-top:12px;">';
+  h += '<button class="mbtn" style="background:linear-gradient(135deg,#AB47BC,#7B1FA2);" onclick="nextKoroDaiTip()">次の勉強法 ›</button>';
+  h += '<button class="mbtn" style="background:#8D6E63;" onclick="closeKoroDaiBubble()">とじる</button>';
+  h += '</div>';
+
+  bubble.innerHTML = h;
+  overlay.classList.add('show');
+}
+
+function nextKoroDaiTip(){
+  var m = getNextStudyMethod();
+  showKoroDaiBubble(m);
+}
+
+function closeKoroDaiBubble(){
+  var overlay = document.getElementById('korodai-npc-overlay');
+  if(overlay) overlay.classList.remove('show');
+}
+
 </script>
 
 <!-- コロ先生コラム詳細 -->
@@ -5917,5 +6348,9 @@ function closeEngQuiz(){
 <!-- コロ先生NPC吹き出し -->
 <div class="koro-npc-overlay" id="koro-npc-overlay" onclick="closeKoroNpcBubble()"></div>
 <div class="koro-npc-bubble" id="koro-npc-bubble" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:250;"></div>
+
+<!-- コロ大大先生NPC吹き出し -->
+<div class="korodai-npc-overlay" id="korodai-npc-overlay" onclick="closeKoroDaiBubble()"></div>
+<div class="korodai-npc-bubble" id="korodai-npc-bubble"></div>
 </body>
 </html>
